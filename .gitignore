@@ -1,31 +1,44 @@
-*~
-~*
-
-*.bak
-*.bat
-*.diff
-*.err
-*.log
-*.patch
-*.swo
-*.swp
-*.zip
-
-.DS_Store
-.env
-.nojekyll
-.project
-.settings
-Thumbs.db
-
-.idea/
-.svn/
-_site/
-.vscode/
+```
+# Dependencies
 node_modules/
 
-# ESLint cache
-.eslintcache
+# Environment
+.env
+.env.local
+*.env.*
 
-# Published folders
-/release/
+# Logs
+*.log
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
+
+# Build artifacts
+dist/
+build/
+target/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+.venv/
+env/
+ENV/
+
+# Coverage
+coverage/
+htmlcov/
+.coverage
+
+# System
+.DS_Store
+Thumbs.db
+```

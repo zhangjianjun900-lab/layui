@@ -1,0 +1,20 @@
+{
+  "name": "LayuiWAF",
+  "title": "Layui WAF防火墙",
+  "tip": "waf",
+  "info": "基于Layui框架开发的Web应用防火墙，提供SQL注入、XSS、CC攻击等防护功能",
+  "key": "waf",
+  "home": "https://github.com/layui/waf",
+  "download": "",
+  "price": 0,
+  "status": 0,
+  "category": "security",
+  "ps": "Layui WAF是一款轻量级Web应用防火墙，集成多种安全防护功能",
+  "versions": "1.0.0",
+  "checks": "/www/server/waf",
+  "author": "Layui Team",
+  "date": "2025-01-01",
+  "url": "",
+  "icon": "waf",
+  "shell": "install.sh"
+}
