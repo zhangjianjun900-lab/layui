@@ -9,7 +9,7 @@ if (version_compare(PHP_VERSION, '7.0', '<')) {
 }
 
 // 检查必需的扩展
-$required_extensions = ['json', 'filter', 'pcre', 'session'];
+$required_extensions = ['json', 'filter', 'pcre', 'session', 'pdo', 'pdo_mysql'];
 $missing_extensions = [];
 foreach ($required_extensions as $ext) {
     if (!extension_loaded($ext)) {
@@ -96,6 +96,109 @@ define(\'API_SECRET_KEY\', \'waf_system_secret_key_\' . time());
     file_put_contents($config_file, $config_content);
 }
 
+// 初始化数据库
+echo "正在初始化数据库...\n";
+try {
+    $dsn = "mysql:host=" . DB_HOST . ";charset=" . DB_CHARSET;
+    $pdo = new PDO($dsn, DB_USER, DB_PASS, [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES => false,
+    ]);
+    
+    // 创建数据库（如果不存在）
+    $pdo->exec("CREATE DATABASE IF NOT EXISTS " . DB_NAME . " CHARACTER SET " . DB_CHARSET . " COLLATE " . DB_CHARSET . "_general_ci");
+    
+    // 选择数据库
+    $pdo->exec("USE " . DB_NAME);
+    
+    // 创建攻击日志表
+    $pdo->exec("CREATE TABLE IF NOT EXISTS attack_logs (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        timestamp DATETIME NOT NULL,
+        type VARCHAR(50) NOT NULL,
+        details TEXT,
+        ip VARCHAR(45) NOT NULL,
+        url TEXT,
+        method VARCHAR(10),
+        user_agent TEXT,
+        INDEX idx_timestamp (timestamp),
+        INDEX idx_ip (ip),
+        INDEX idx_type (type)
+    ) ENGINE=InnoDB DEFAULT CHARSET=" . DB_CHARSET);
+    
+    // 创建封禁IP表
+    $pdo->exec("CREATE TABLE IF NOT EXISTS blocked_ips (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        ip VARCHAR(45) NOT NULL UNIQUE,
+        reason TEXT,
+        blocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        expires_at TIMESTAMP NULL,
+        INDEX idx_ip (ip),
+        INDEX idx_expires (expires_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=" . DB_CHARSET);
+    
+    // 创建用户表
+    $pdo->exec("CREATE TABLE IF NOT EXISTS users (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        username VARCHAR(50) NOT NULL UNIQUE,
+        password_hash VARCHAR(255) NOT NULL,
+        email VARCHAR(100),
+        role ENUM('admin', 'user') DEFAULT 'user',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_username (username)
+    ) ENGINE=InnoDB DEFAULT CHARSET=" . DB_CHARSET);
+    
+    // 创建防护规则表
+    $pdo->exec("CREATE TABLE IF NOT EXISTS protection_rules (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        rule_name VARCHAR(100) NOT NULL,
+        rule_type ENUM('sql', 'xss', 'cc', 'custom') NOT NULL,
+        pattern TEXT,
+        enabled TINYINT(1) DEFAULT 1,
+        description TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=" . DB_CHARSET);
+    
+    // 创建访问日志表
+    $pdo->exec("CREATE TABLE IF NOT EXISTS access_logs (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        timestamp DATETIME NOT NULL,
+        ip VARCHAR(45) NOT NULL,
+        url TEXT,
+        method VARCHAR(10),
+        status_code INT,
+        user_agent TEXT,
+        INDEX idx_timestamp (timestamp),
+        INDEX idx_ip (ip)
+    ) ENGINE=InnoDB DEFAULT CHARSET=" . DB_CHARSET);
+    
+    // 插入默认管理员用户
+    $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password_hash, email, role) VALUES (?, ?, ?, ?)");
+    $default_password_hash = password_hash('admin', PASSWORD_DEFAULT);
+    $stmt->execute(['admin', $default_password_hash, 'admin@example.com', 'admin']);
+    
+    // 插入默认防护规则
+    $default_rules = [
+        ['SQL注入防护', 'sql', '(\\%27)|(\\')|(--)|(%23)|(#)', 1, '检测SQL注释和引号'],
+        ['XSS防护-Script标签', 'xss', '<script\\b[^<]*(?:(?!<\\/script>)<[^<]*)*<\\/script>', 1, '检测Script标签'],
+        ['XSS防护-JavaScript协议', 'xss', 'javascript:', 1, '检测JavaScript协议'],
+        ['XSS防护-On事件', 'xss', 'on(load|error|click|mouseover)=', 1, '检测常见事件处理器']
+    ];
+    
+    $rule_stmt = $pdo->prepare("INSERT IGNORE INTO protection_rules (rule_name, rule_type, pattern, enabled, description) VALUES (?, ?, ?, ?, ?)");
+    foreach ($default_rules as $rule) {
+        $rule_stmt->execute($rule);
+    }
+    
+    echo "数据库初始化成功！\n";
+} catch (PDOException $e) {
+    echo "数据库初始化失败: " . $e->getMessage() . "\n";
+    echo "请检查数据库配置并在config/config.php中正确设置数据库连接参数。\n";
+}
+
 // 创建初始封禁IP文件
 $blocked_ips_file = __DIR__ . '/config/blocked_ips.json';
 if (!file_exists($blocked_ips_file)) {
@@ -115,6 +218,7 @@ echo "请访问 login.php 进行登录\n";
 // 提示用户修改默认密码
 echo "\n安全提示：\n";
 echo "1. 请立即修改默认登录密码\n";
-echo "2. 建议修改 config/config.php 中的 API_SECRET_KEY\n";
+echo "2. 建议修改 config/config.php 中的数据库连接参数\n";
 echo "3. 检查并设置适当的防护参数\n";
 echo "4. 定期备份配置和日志文件\n";
+echo "5. 确保数据库连接安全\n";
