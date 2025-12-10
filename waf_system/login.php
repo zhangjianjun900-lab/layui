@@ -12,19 +12,41 @@ if (isset($_SESSION['logged_in']) && $_SESSION['logged_in']) {
 
 $error_message = '';
 
+// 加载配置
+require_once 'config/config.php';
+
 // 处理登录表单提交
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = $_POST['username'] ?? '';
     $password = $_POST['password'] ?? '';
     
-    // 简单验证（在实际应用中应使用更安全的验证方式）
-    if ($username === 'admin' && $password === 'admin') {
-        $_SESSION['logged_in'] = true;
-        $_SESSION['username'] = $username;
-        header('Location: index.php');
-        exit;
-    } else {
-        $error_message = '用户名或密码错误';
+    try {
+        // 连接数据库
+        $dsn = "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=" . DB_CHARSET;
+        $pdo = new PDO($dsn, DB_USER, DB_PASS, [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false,
+        ]);
+        
+        // 查询用户
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE username = ?");
+        $stmt->execute([$username]);
+        $user = $stmt->fetch();
+        
+        // 验证密码
+        if ($user && password_verify($password, $user['password_hash'])) {
+            $_SESSION['logged_in'] = true;
+            $_SESSION['username'] = $user['username'];
+            $_SESSION['user_id'] = $user['id'];
+            $_SESSION['role'] = $user['role'];
+            header('Location: index.php');
+            exit;
+        } else {
+            $error_message = '用户名或密码错误';
+        }
+    } catch (PDOException $e) {
+        $error_message = '数据库连接错误: ' . $e->getMessage();
     }
 }
 ?>
