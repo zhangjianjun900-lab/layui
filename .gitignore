@@ -1,14 +1,16 @@
 ```
 # Dependencies
+vendor/
 node_modules/
+
+# Logs
+*.log
+logs/
 
 # Environment
 .env
 .env.local
-*.env.*
-
-# Logs
-*.log
+.env.*
 
 # Editor/IDE
 .vscode/
@@ -17,28 +19,28 @@ node_modules/
 *.swo
 *.tmp
 
-# Build artifacts
+# OS
+.DS_Store
+Thumbs.db
+
+# Cache
+.cache/
+*.cache
+
+# Compiled/Build artifacts
+*.pyc
+__pycache__/
+*.o
+*.obj
+*.so
+*.dll
+*.exe
 dist/
 build/
 target/
-
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-venv/
-.venv/
-env/
-ENV/
-
-# Coverage
 coverage/
 htmlcov/
 .coverage
-
-# System
-.DS_Store
-Thumbs.db
+.mypy_cache/
+.pytest_cache/
 ```
